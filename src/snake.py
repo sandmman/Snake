@@ -1,5 +1,6 @@
 import Tkinter
 import tkMessageBox
+import tkFont
 import random
 import copy
 import time
@@ -7,32 +8,30 @@ import time
 board = []
 size = 0
 app = 0
-color = ["black","red","blue","green yellow","light slate gray","yellow","purple","deep pink","orange","chartreuse","gold","plum"]
+color = ["black","red","blue","green yellow","light slate gray","yellow","purple","deep pink","orange","chartreuse","gold","magenta"]
 
 class Snake(Tkinter.Tk):
     def __init__(self,parent):
         global size
         Tkinter.Tk.__init__(self, parent)
       #self.configure(bg="Black")
-        self.x = 0
-        self.y = 0
+
         self.s = size/15
-        self.oldSnake = []
+        self.speed = 0
         self.snake = []
+        self.food = [0,0]
+        self.direction = [False,False,False,True] #[up,down,left,right]
+
         self.label = ""
         self.button = ""
         self.button1 = ""
         self.button2 = ""
         self.img= ""
-        self.speed = 0
+
         self.board_color = color[random.randint(0,len(color)-1)]
         self.food_color  = color[random.randint(0,len(color)-1)]
         self.snake_color = color[random.randint(0,len(color)-1)]
 
-        self.up = False
-        self.down = False
-        self.right = True
-        self.left = False
         self.title_page()
 
     def title_page(self):
@@ -40,7 +39,7 @@ class Snake(Tkinter.Tk):
 
         title = Tkinter.StringVar()
         self.configure(bg="white")
-        self.label = Tkinter.Label(self, textvariable=title,font=("helvetica",20,"bold"), text=self.snake_color)
+        self.label = Tkinter.Label(self, textvariable=title,font=(list(tkFont.families())[random.randint(0,100)],32,"bold","underline"), fg=self.snake_color)
         self.label.grid(column=1,row=0)
         title.set("SNAKE");
 
@@ -75,19 +74,6 @@ class Snake(Tkinter.Tk):
     def run(self):
         self.after(self.speed, self.move)
 
-    def move(self):
-        if self.right:
-            head = [self.snake[0][0]+1,self.snake[0][1]]
-        elif self.left:
-            head = [self.snake[0][0]-1,self.snake[0][1]]
-        elif self.up:
-            head = [self.snake[0][0],self.snake[0][1]-1]
-        elif self.down:
-            head = [self.snake[0][0],self.snake[0][1]+1]
-        self.crashed(head)
-        self.update_snake(head)
-        self.run()
-
     def initialize(self):
          global board
          global color
@@ -104,18 +90,18 @@ class Snake(Tkinter.Tk):
          """Snake Setup"""
          self.canvas.itemconfig(self.rect[0,0],fill=self.snake_color)
          self.snake.append([0,0])
-         self.oldSnake.append([0,0])
 
          """Food Setup"""
-         self.x = random.randint(0,self.s - 1)
-         self.y = random.randint(0,self.s - 1)
-         self.canvas.itemconfig(self.rect[self.x,self.y],fill=self.food_color)
+         self.food[0] = random.randint(1,self.s - 1)
+         self.food[1] = random.randint(1,self.s - 1)
+         self.canvas.itemconfig(self.rect[self.food[0],self.food[1]],fill=self.food_color)
 
          """Bind Keys """
          self.bind_all('<Key>', self.keyPressed)
 
          """Play"""
          self.run()
+
     def build_board(self):
         global size
 
@@ -135,8 +121,8 @@ class Snake(Tkinter.Tk):
                 y2 = y1 + self.cellheight
                 self.rect[row,column] = self.canvas.create_rectangle(x1,y1,x2,y2, fill=self.board_color, tags="rect")
 
-    def crashed(self,head):
-        # Crashed into a wall
+    def check_crash(self,head):
+        # check_crash into a wall
         if head[0] > self.s - 1 or head[1] > self.s - 1 or head[0] < 0 or head[1] < 0:
             tkMessageBox.showinfo(title="Game over", message = "Score = " + str(len(self.snake)))
             time.sleep(2)
@@ -147,52 +133,55 @@ class Snake(Tkinter.Tk):
                 time.sleep(2)
                 self.quit()
 
+    def move(self):
+        if self.direction[0]:
+            head = [self.snake[0][0],self.snake[0][1]-1]
+        elif self.direction[1]:
+            head = [self.snake[0][0],self.snake[0][1]+1]
+        elif self.direction[2]:
+            head = [self.snake[0][0]-1,self.snake[0][1]]
+        elif self.direction[3]:
+            head = [self.snake[0][0]+1,self.snake[0][1]]
+        self.check_crash(head)
+        self.update_snake(head)
+        self.run()
+
     def keyPressed(self,event):
         if event.keysym == 'Escape':
             root.destroy()
         elif event.keysym == 'Right':
             head = [self.snake[0][0]+1,self.snake[0][1]]
-            self.up = False
-            self.down = False
-            self.right = True
-            self.left = False
+            self.direction = [False,False,False,True]
         elif event.keysym == 'Left':
             head = [self.snake[0][0]-1,self.snake[0][1]]
-            self.up = False
-            self.down = False
-            self.right = False
-            self.left = True
+            self.direction = [False,False,True,False]
         elif event.keysym == 'Up':
             head = [self.snake[0][0],self.snake[0][1]-1]
-            self.up = True
-            self.down = False
-            self.right = False
-            self.left = False
+            self.direction = [True,False,False,False]
         elif event.keysym == 'Down':
             head = [self.snake[0][0],self.snake[0][1]+1]
-            self.up = False
-            self.down = True
-            self.right = False
-            self.left = False
+            self.direction = [False,True,False,False]
         else:
             return
-        self.crashed(head)
+        self.check_crash(head)
         self.update_snake(head)
 
     def update_snake(self,head):
-        # Get new head coordinate + add that to front of snake
-        # Delete tail / make blue
-        #if head hits food dont delete tail
         global app
         self.snake = [head] + self.snake
-        if self.snake[0][1] == self.x and self.snake[0][0] == self.y:
+
+        if self.snake[0][1] == self.food[0] and self.snake[0][0] == self.food[1]:
             app.title("Snake - Score: " + str(len(self.snake)))
-            self.x = random.randint(0,self.s - 1)
-            self.y = random.randint(0,self.s - 1)
-            self.canvas.itemconfig(self.rect[self.x,self.y],fill=self.food_color)
+
+            while [self.food[1],self.food[0]] in self.snake:
+                self.food[0] = random.randint(0,self.s - 1)
+                self.food[1] = random.randint(0,self.s - 1)
+
+            self.canvas.itemconfig(self.rect[self.food[0],self.food[1]],fill=self.food_color)
+
         else:
             self.canvas.itemconfig(self.rect[self.snake[-1][1],self.snake[-1][0]],fill=self.board_color)
             self.snake.pop(len(self.snake)-1)
+
         for i in range(len(self.snake)):
-            #self.canvas.itemconfig(self.rect[self.oldSnake[0][1],self.oldSnake[0][0]],fill="blue")
             self.canvas.itemconfig(self.rect[self.snake[i][1],self.snake[i][0]],fill=self.snake_color)
